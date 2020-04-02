@@ -60,7 +60,7 @@ int openVideo(char* url)
     
 	//Allocate swscale Context for Codec Format to RGB32 convertion
 	m_swsContext = sws_getContext( m_pCodecCtx->width, m_pCodecCtx->height, m_pCodecCtx->pix_fmt,
-		m_pCodecCtx->width, m_pCodecCtx->height, PIX_FMT_YUVJ420P, SWS_FAST_BILINEAR, NULL, NULL, NULL);    
+		m_pCodecCtx->width, m_pCodecCtx->height, AV_PIX_FMT_YUVJ420P, SWS_FAST_BILINEAR, NULL, NULL, NULL);    
         //AV_PIX_FMT_YUVJ420P
 	
 	
@@ -81,7 +81,7 @@ int closeVideo() {
 	return 0 ;
 }
 
-int convert(AVFrame *frame, int width, int height, int pxl_fmt) 
+int convert(AVFrame *frame, int width, int height, int pxl_fmt, const char* output) 
 {
     AVPacket pkt;
     AVCodec* codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
@@ -121,8 +121,9 @@ int convert(AVFrame *frame, int width, int height, int pxl_fmt)
     if (got_output)
     {
         printf("got frame\n");
-        FILE* f = fopen("output.jpeg", "wb");
+        FILE* f = fopen(output, "wb");
         fwrite(pkt.data, 1, pkt.size, f);
+	fclose(f);
         av_free_packet(&pkt);
     }
 
@@ -132,7 +133,7 @@ int convert(AVFrame *frame, int width, int height, int pxl_fmt)
     return 0;
 }
 
-int getNextFrame()
+int getNextFrame(const char* output)
 {
 	AVFormatContext *pFormatCtx = m_pFormatCtx ;
 	AVCodecContext *pCodecCtx = m_pCodecCtx ;
@@ -158,7 +159,7 @@ int getNextFrame()
                 sws_scale( m_swsContext, (const uint8_t* const*)m_picture.data, m_picture.linesize,
                     0,m_pCodecCtx->height, m_pictureRGB.data, m_pictureRGB.linesize );	
                     
-                convert( (AVFrame*)&m_pictureRGB, pFrame->width, pFrame->height, AV_PIX_FMT_YUVJ420P );
+                convert( (AVFrame*)&m_pictureRGB, pFrame->width, pFrame->height, AV_PIX_FMT_YUVJ420P, output );
 				
 				break ;
 			}
@@ -174,6 +175,10 @@ int getNextFrame()
 
 int main(int argc, char** argv)
 {
+	if ( argc != 3 ) {
+		printf("grap rtsp://url output.jpg\n");
+		return 1;
+	}
 	avcodec_register_all();
 	av_register_all();
 
@@ -181,7 +186,7 @@ int main(int argc, char** argv)
     
     openVideo(argv[1]);
     
-    getNextFrame();
+    getNextFrame(argv[2]);
     
     closeVideo();
     
